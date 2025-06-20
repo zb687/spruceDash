@@ -1,0 +1,18 @@
+# ECI API Configuration
+ECI_API_ENDPOINT=https://customername.api.cloud.ecihosting.com/api/ecommerce.asmx
+ECI_API_KEY=your-api-key-here
+
+# Database Configuration
+# For local development, uses SQLite
+# For production, use PostgreSQL: postgresql://user:password@host:port/database
+DATABASE_URL=sqlite:///eci_dashboard.db
+
+# Redis Configuration (for caching)
+REDIS_URL=redis://localhost:6379
+
+# Application Settings
+FLASK_ENV=development
+DEFAULT_BRANCH=MAIN
+
+# For production deployment
+PORT=5000
