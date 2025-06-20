@@ -1,0 +1,27 @@
+# Core dependencies
+flask==3.0.0
+flask-cors==4.0.0
+requests==2.31.0
+zeep==4.2.1
+pandas==2.1.4
+numpy==1.26.2
+python-dateutil==2.8.2
+python-dotenv==1.0.0
+gunicorn==21.2.0
+apscheduler==3.10.4
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Data visualization (for backend processing)
+plotly==5.18.0
+
+# Caching
+redis==5.0.1
+flask-caching==2.1.0
+
+# Development
+pytest==7.4.3
+black==23.11.0
+flake8==6.1.0
