@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECI Spruce Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .dashboard-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .metric-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .alert-badge {
+            background-color: #dc3545;
+            color: white;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.8rem;
+        }
+        .loading-spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .trend-up {
+            color: #28a745;
+        }
+        .trend-down {
+            color: #dc3545;
+        }
+        .chart-container {
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line"></i> ECI Spruce Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text text-white">
+                    <i class="fas fa-clock"></i> Last Updated: <span id="lastUpdated">--</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid mt-4">
+        <!-- Summary Metrics Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Today's Revenue</div>
+                    <div class="metric-value" id="todayRevenue">$0</div>
+                    <div id="revenueChange"></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="metric-label">Transactions</div>
+                    <div class="metric-value" id="todayTransactions">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="metric-label">Items Sold</div>
+                    <div class="metric-value" id="itemsSold">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                    <div class="metric-label">Inventory Alerts</div>
+                    <div class="metric-value" id="inventoryAlerts">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Row -->
+        <div class="row">
+            <!-- Top Selling Items -->
+            <div class="col-md-6">
+                <div class="dashboard-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-fire text-danger"></i> Top Selling Items Today
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topItemsTable">
+                                <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Alerts -->
+            <div class="col-md-6">
+                <div class="dashboard-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> Low Inventory Alerts
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Available</th>
+                                    <th>Days Left</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryAlertsTable">
+                                <tr><td colspan="4" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mt-4">
+            <!-- Sales Trend Chart -->
+            <div class="col-md-8">
+                <div class="dashboard-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-area text-primary"></i> Sales Trend (Last 30 Days)
+                    </h5>
+                    <div id="salesTrendChart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Brand Performance -->
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-tags text-info"></i> Sales by Brand
+                    </h5>
+                    <div id="brandChart" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demand Forecast Section -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <h5 class="mb-3">
+                        <i class="fas fa-crystal-ball text-purple"></i> Demand Forecast
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="itemNumberInput" placeholder="Enter Item Number">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary w-100" onclick="loadDemandForecast()">
+                                <i class="fas fa-search"></i> Forecast
+                            </button>
+                        </div>
+                    </div>
+                    <div id="forecastResult" class="mt-3"></div>
+                    <div id="forecastChart" class="chart-container mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // API Base URL
+        const API_BASE = window.location.origin + '/api';
+
+        // Utility Functions
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+
+        function showLoading() {
+            document.querySelector('.loading-spinner').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading-spinner').style.display = 'none';
+        }
+
+        // Load Dashboard Summary
+        async function loadDashboardSummary() {
+            try {
+                const response = await axios.get(`${API_BASE}/dashboard/summary`);
+                const data = response.data;
+
+                // Update metrics
+                document.getElementById('todayRevenue').textContent = formatCurrency(data.today_sales.total_revenue);
+                document.getElementById('todayTransactions').textContent = data.today_sales.total_transactions;
+                document.getElementById('itemsSold').textContent = data.today_sales.items_sold;
+                document.getElementById('inventoryAlerts').textContent = data.inventory_alerts;
+                document.getElementById('lastUpdated').textContent = new Date(data.last_updated).toLocaleTimeString();
+
+                // Update top items table
+                updateTopItemsTable(data.top_selling_items);
+
+                // Load additional data
+                loadInventoryAlerts();
+                loadSalesTrend();
+                loadBrandSales();
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Update Top Items Table
+        function updateTopItemsTable(items) {
+            const tbody = document.getElementById('topItemsTable');
+            tbody.innerHTML = '';
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No sales data</td></tr>';
+                return;
+            }
+
+            items.forEach(item => {
+                const row = `
+                    <tr>
+                        <td>
+                            <strong>${item.item_number}</strong><br>
+                            <small class="text-muted">${item.description}</small>
+                        </td>
+                        <td>${Math.round(item.quantity_sold)}</td>
+                        <td>${formatCurrency(item.revenue)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // Load Inventory Alerts
+        async function loadInventoryAlerts() {
+            try {
+                const response = await axios.get(`${API_BASE}/inventory/alerts`);
+                const alerts = response.data;
+                const tbody = document.getElementById('inventoryAlertsTable');
+                tbody.innerHTML = '';
+
+                if (alerts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center">No inventory alerts</td></tr>';
+                    return;
+                }
+
+                alerts.slice(0, 10).forEach(item => {
+                    const row = `
+                        <tr>
+                            <td>
+                                <strong>${item.item_number}</strong><br>
+                                <small class="text-muted">${item.description}</small>
+                            </td>
+                            <td><span class="alert-badge">${Math.round(item.qty_available)}</span></td>
+                            <td>${item.days_of_supply || 'N/A'} days</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" onclick="viewItemForecast('${item.item_number}')">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Error loading inventory alerts:', error);
+            }
+        }
+
+        // Load Sales Trend
+        async function loadSalesTrend() {
+            try {
+                // This would typically fetch data from an endpoint
+                // For now, we'll create sample data
+                const dates = [];
+                const sales = [];
+                
+                for (let i = 29; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                    sales.push(Math.random() * 10000 + 5000);
+                }
+
+                const trace = {
+                    x: dates,
+                    y: sales,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: {
+                        color: '#667eea',
+                        width: 3
+                    },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(102, 126, 234, 0.1)'
+                };
+
+                const layout = {
+                    margin: { t: 10, r: 10, l: 60, b: 40 },
+                    xaxis: { title: 'Date' },
+                    yaxis: { title: 'Revenue ($)' },
+                    hovermode: 'x unified'
+                };
+
+                Plotly.newPlot('salesTrendChart', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('Error loading sales trend:', error);
+            }
+        }
+
+        // Load Brand Sales
+        async function loadBrandSales() {
+            try {
+                const response = await axios.get(`${API_BASE}/sales/by-brand?days=30`);
+                const brandData = response.data;
+
+                const trace = {
+                    labels: brandData.slice(0, 5).map(b => b.brand),
+                    values: brandData.slice(0, 5).map(b => b.revenue),
+                    type: 'pie',
+                    marker: {
+                        colors: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#fa709a']
+                    }
+                };
+
+                const layout = {
+                    margin: { t: 20, r: 20, l: 20, b: 20 },
+                    showlegend: true,
+                    legend: {
+                        orientation: 'v',
+                        x: 1,
+                        y: 0.5
+                    }
+                };
+
+                Plotly.newPlot('brandChart', [trace], layout, {responsive: true});
+            } catch (error) {
+                console.error('Error loading brand sales:', error);
+            }
+        }
+
+        // Load Demand Forecast
+        async function loadDemandForecast() {
+            const itemNumber = document.getElementById('itemNumberInput').value;
+            if (!itemNumber) {
+                alert('Please enter an item number');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await axios.get(`${API_BASE}/demand/forecast/${itemNumber}`);
+                const forecast = response.data;
+
+                if (forecast.error) {
+                    document.getElementById('forecastResult').innerHTML = `
+                        <div class="alert alert-danger">
+                            Error: ${forecast.error}
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Display forecast results
+                const forecastHtml = `
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Avg Daily Demand</h6>
+                                    <h3 class="text-primary">${forecast.current_metrics.avg_daily_demand}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">7-Day Forecast</h6>
+                                    <h3 class="text-success">${forecast.forecast.next_7_days}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Reorder Point</h6>
+                                    <h3 class="text-warning">${forecast.inventory_planning.reorder_point}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h6 class="card-title">Trend</h6>
+                                    <h3 class="${forecast.forecast.trend === 'increasing' ? 'text-success' : forecast.forecast.trend === 'decreasing' ? 'text-danger' : 'text-secondary'}">
+                                        ${forecast.forecast.trend.toUpperCase()}
+                                        <small>${forecast.forecast.trend_percentage}%</small>
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('forecastResult').innerHTML = forecastHtml;
+
+                // Display forecast chart if available
+                if (forecast.chart_data) {
+                    const chartData = JSON.parse(forecast.chart_data);
+                    const layout = {
+                        title: `Demand Forecast - ${itemNumber}`,
+                        xaxis: { title: 'Date' },
+                        yaxis: { title: 'Quantity' },
+                        hovermode: 'x unified'
+                    };
+                    Plotly.newPlot('forecastChart', chartData, layout, {responsive: true});
+                }
+
+            } catch (error) {
+                console.error('Error loading forecast:', error);
+                document.getElementById('forecastResult').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading forecast: ${error.message}
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // View Item Forecast (from inventory alerts)
+        function viewItemForecast(itemNumber) {
+            document.getElementById('itemNumberInput').value = itemNumber;
+            loadDemandForecast();
+            // Scroll to forecast section
+            document.getElementById('forecastResult').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Auto-refresh dashboard every 5 minutes
+        setInterval(loadDashboardSummary, 300000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardSummary();
+        });
+    </script>
+</body>
+</html>
