@@ -2,7 +2,7 @@
 import zeep
 from zeep import Client
 from zeep.transports import Transport
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import logging
 from typing import List, Dict, Any, Optional
 import os

@@ -1,7 +1,7 @@
 # services/analytics_service.py
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date  # ← Add 'date' here
 from typing import List, Dict, Any, Tuple
 import logging
 from database_service import DatabaseService
