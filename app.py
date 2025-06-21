@@ -48,15 +48,33 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/dashboard/summary')
-@cache.cached(timeout=300)  # Cache for 5 minutes
+@cache.cached(timeout=300)
 def dashboard_summary():
-    try:
-        # Get date range for today
-        today = datetime.now().date()
-        yesterday = today - timedelta(days=1)
+try:
+        # Get date parameters or default to last 7 days
+        end_date = request.args.get('end_date')
+        start_date = request.args.get('start_date')
         
-        # Fetch data
-        sales_data = eci_service.get_daily_sales(yesterday, today)
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            end_date = datetime.now().date()
+            
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=7)
+        
+        # Fetch data for the date range
+        sales_data = eci_service.get_daily_sales(start_date, end_date)
+S
+    try:
+        # Change from today to last 7 days
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        
+        # Fetch last 7 days of data
+        sales_data = eci_service.get_daily_sales(week_ago, today)
         inventory_alerts = eci_service.get_inventory_alerts()
         
         summary = {
@@ -65,6 +83,9 @@ def dashboard_summary():
             'top_selling_items': analytics_service.get_top_items(sales_data, limit=5),
             'last_updated': datetime.now().isoformat()
         }
+        
+        # Rename today_sales to period_sales for clarity
+        summary['period_label'] = 'Last 7 Days'
         
         return jsonify(summary)
     except Exception as e:

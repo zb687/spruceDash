@@ -90,6 +90,31 @@
         </div>
     </nav>
 
+<!-- Add this after the navbar -->
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text">Date Range</span>
+                <input type="date" class="form-control" id="startDate" value="">
+                <input type="date" class="form-control" id="endDate" value="">
+                <button class="btn btn-primary" onclick="refreshDashboard()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-primary" onclick="setDateRange(1)">Today</button>
+                <button class="btn btn-outline-primary" onclick="setDateRange(7)">7 Days</button>
+                <button class="btn btn-outline-primary" onclick="setDateRange(30)">30 Days</button>
+                <button class="btn btn-outline-primary" onclick="setDateRange(90)">90 Days</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
     <!-- Main Container -->
     <div class="container-fluid mt-4">
         <!-- Summary Metrics Row -->
@@ -231,6 +256,27 @@
         const API_BASE = window.location.origin + '/api';
 
         // Utility Functions
+	// change date range add date selector
+function setDateRange(days) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+    
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+    
+    refreshDashboard();
+}
+
+function refreshDashboard() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    // Update the API calls to include date range
+    loadDashboardSummaryWithDates(startDate, endDate);
+}
+
+
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-US', {
                 style: 'currency',
@@ -246,6 +292,22 @@
             document.querySelector('.loading-spinner').style.display = 'none';
         }
 
+	// load summary with dates
+async function loadDashboardSummaryWithDates(startDate, endDate) {
+    try {
+        const response = await axios.get(`${API_BASE}/dashboard/summary`, {
+            params: { start_date: startDate, end_date: endDate }
+        });
+        // ... rest of the function
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+// Set default to last 30 days on load
+document.addEventListener('DOMContentLoaded', function() {
+    setDateRange(30);  // Default to 30 days
+});
         // Load Dashboard Summary
         async function loadDashboardSummary() {
             try {
