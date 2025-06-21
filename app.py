@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
-from services.eci_api_service import ECIApiService
-from services.analytics_service import AnalyticsService
-from services.database_service import DatabaseService
+from eci_api_service import ECIApiService
+from analytics_service import AnalyticsService
+from database_service import DatabaseService
 
 # Load environment variables
 load_dotenv()
