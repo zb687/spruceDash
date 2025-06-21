@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple
 import logging
-from services.database_service import DatabaseService
+from database_service import DatabaseService
 import plotly.graph_objs as go
 import plotly.utils
 import json
