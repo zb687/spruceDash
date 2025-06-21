@@ -9,9 +9,18 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
-from services.eci_api_service import ECIApiService
-from services.analytics_service import AnalyticsService
-from services.database_service import DatabaseService
+try:
+    from services.eci_api_service import ECIApiService
+    from services.analytics_service import AnalyticsService
+    from services.database_service import DatabaseService
+except ImportError:
+    # Fallback for Railway
+    import services.eci_api_service as eci_api_service
+    import services.analytics_service as analytics_service
+    import services.database_service as database_service
+    ECIApiService = eci_api_service.ECIApiService
+    AnalyticsService = analytics_service.AnalyticsService
+    DatabaseService = database_service.DatabaseService
 
 # Load environment variables
 load_dotenv()
