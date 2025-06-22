@@ -90,30 +90,29 @@
         </div>
     </nav>
 
-<!-- Add this after the navbar -->
-<div class="container-fluid mt-3">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="input-group">
-                <span class="input-group-text">Date Range</span>
-                <input type="date" class="form-control" id="startDate" value="">
-                <input type="date" class="form-control" id="endDate" value="">
-                <button class="btn btn-primary" onclick="refreshDashboard()">
-                    <i class="fas fa-sync"></i> Refresh
-                </button>
+    <!-- Date Range Controls -->
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text">Date Range</span>
+                    <input type="date" class="form-control" id="startDate" value="">
+                    <input type="date" class="form-control" id="endDate" value="">
+                    <button class="btn btn-primary" onclick="refreshDashboard()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="col-md-6 text-end">
-            <div class="btn-group" role="group">
-                <button class="btn btn-outline-primary" onclick="setDateRange(1)">Today</button>
-                <button class="btn btn-outline-primary" onclick="setDateRange(7)">7 Days</button>
-                <button class="btn btn-outline-primary" onclick="setDateRange(30)">30 Days</button>
-                <button class="btn btn-outline-primary" onclick="setDateRange(90)">90 Days</button>
+            <div class="col-md-6 text-end">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary" onclick="setDateRange(1)">Today</button>
+                    <button class="btn btn-outline-primary" onclick="setDateRange(7)">7 Days</button>
+                    <button class="btn btn-outline-primary" onclick="setDateRange(30)">30 Days</button>
+                    <button class="btn btn-outline-primary" onclick="setDateRange(90)">90 Days</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
-
 
     <!-- Main Container -->
     <div class="container-fluid mt-4">
@@ -121,7 +120,7 @@
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="metric-card">
-                    <div class="metric-label">Today's Revenue</div>
+                    <div class="metric-label">Period Revenue</div>
                     <div class="metric-value" id="todayRevenue">$0</div>
                     <div id="revenueChange"></div>
                 </div>
@@ -152,7 +151,7 @@
             <div class="col-md-6">
                 <div class="dashboard-card">
                     <h5 class="mb-3">
-                        <i class="fas fa-fire text-danger"></i> Top Selling Items Today
+                        <i class="fas fa-fire text-danger"></i> Top Selling Items <span id="periodLabel"></span>
                     </h5>
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -202,7 +201,7 @@
             <div class="col-md-8">
                 <div class="dashboard-card">
                     <h5 class="mb-3">
-                        <i class="fas fa-chart-area text-primary"></i> Sales Trend (Last 30 Days)
+                        <i class="fas fa-chart-area text-primary"></i> Sales Trend
                     </h5>
                     <div id="salesTrendChart" class="chart-container"></div>
                 </div>
@@ -228,11 +227,21 @@
                     </h5>
                     <div class="row">
                         <div class="col-md-4">
-                            <input type="text" class="form-control" id="itemNumberInput" placeholder="Enter Item Number">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="itemNumberInput" 
+                                   placeholder="Enter Item Number"
+                                   list="itemSuggestions">
+                            <datalist id="itemSuggestions"></datalist>
                         </div>
                         <div class="col-md-2">
                             <button class="btn btn-primary w-100" onclick="loadDemandForecast()">
                                 <i class="fas fa-search"></i> Forecast
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-secondary w-100" onclick="loadTopItems()">
+                                <i class="fas fa-list"></i> Show Top Items
                             </button>
                         </div>
                     </div>
@@ -256,27 +265,6 @@
         const API_BASE = window.location.origin + '/api';
 
         // Utility Functions
-	// change date range add date selector
-function setDateRange(days) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - days);
-    
-    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
-    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
-    
-    refreshDashboard();
-}
-
-function refreshDashboard() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-    
-    // Update the API calls to include date range
-    loadDashboardSummaryWithDates(startDate, endDate);
-}
-
-
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-US', {
                 style: 'currency',
@@ -292,26 +280,38 @@ function refreshDashboard() {
             document.querySelector('.loading-spinner').style.display = 'none';
         }
 
-	// load summary with dates
-async function loadDashboardSummaryWithDates(startDate, endDate) {
-    try {
-        const response = await axios.get(`${API_BASE}/dashboard/summary`, {
-            params: { start_date: startDate, end_date: endDate }
-        });
-        // ... rest of the function
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-    }
-}
+        // Date Range Functions
+        function setDateRange(days) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - days);
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+            
+            refreshDashboard();
+        }
 
-// Set default to last 30 days on load
-document.addEventListener('DOMContentLoaded', function() {
-    setDateRange(30);  // Default to 30 days
-});
+        function refreshDashboard() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (startDate && endDate) {
+                loadDashboardSummary();
+                loadSalesTrend();
+                loadBrandSales();
+            }
+        }
+
         // Load Dashboard Summary
         async function loadDashboardSummary() {
             try {
-                const response = await axios.get(`${API_BASE}/dashboard/summary`);
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                const response = await axios.get(`${API_BASE}/dashboard/summary`, {
+                    params: { start_date: startDate, end_date: endDate }
+                });
                 const data = response.data;
 
                 // Update metrics
@@ -320,17 +320,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('itemsSold').textContent = data.today_sales.items_sold;
                 document.getElementById('inventoryAlerts').textContent = data.inventory_alerts;
                 document.getElementById('lastUpdated').textContent = new Date(data.last_updated).toLocaleTimeString();
+                document.getElementById('periodLabel').textContent = `(${data.period_label})`;
 
                 // Update top items table
                 updateTopItemsTable(data.top_selling_items);
 
                 // Load additional data
                 loadInventoryAlerts();
-                loadSalesTrend();
-                loadBrandSales();
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
+                alert('Error loading dashboard data. Please check your date range.');
             }
         }
 
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No sales data</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No sales data for this period</td></tr>';
                 return;
             }
 
@@ -373,6 +373,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 alerts.slice(0, 10).forEach(item => {
+                    const daysLeft = item.days_of_supply || 'N/A';
+                    const daysClass = daysLeft < 7 ? 'text-danger' : daysLeft < 14 ? 'text-warning' : '';
+                    
                     const row = `
                         <tr>
                             <td>
@@ -380,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="text-muted">${item.description}</small>
                             </td>
                             <td><span class="alert-badge">${Math.round(item.qty_available)}</span></td>
-                            <td>${item.days_of_supply || 'N/A'} days</td>
+                            <td class="${daysClass}">${daysLeft} days</td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="viewItemForecast('${item.item_number}')">
                                     <i class="fas fa-chart-line"></i>
@@ -398,21 +401,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load Sales Trend
         async function loadSalesTrend() {
             try {
-                // This would typically fetch data from an endpoint
-                // For now, we'll create sample data
-                const dates = [];
-                const sales = [];
+                const endDate = document.getElementById('endDate').value;
+                const startDate = document.getElementById('startDate').value;
                 
-                for (let i = 29; i >= 0; i--) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
-                    dates.push(date.toISOString().split('T')[0]);
-                    sales.push(Math.random() * 10000 + 5000);
-                }
+                const response = await axios.get(`${API_BASE}/sales/trend`, {
+                    params: { start_date: startDate, end_date: endDate }
+                });
+                
+                const data = response.data;
 
                 const trace = {
-                    x: dates,
-                    y: sales,
+                    x: data.dates,
+                    y: data.sales,
                     type: 'scatter',
                     mode: 'lines+markers',
                     line: {
@@ -441,6 +441,11 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const response = await axios.get(`${API_BASE}/sales/by-brand?days=30`);
                 const brandData = response.data;
+
+                if (brandData.length === 0) {
+                    document.getElementById('brandChart').innerHTML = '<p class="text-center">No brand data available</p>';
+                    return;
+                }
 
                 const trace = {
                     labels: brandData.slice(0, 5).map(b => b.brand),
@@ -480,23 +485,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await axios.get(`${API_BASE}/demand/forecast/${itemNumber}`);
                 const forecast = response.data;
 
-                if (forecast.error) {
+                // Check if we have an error
+                if (forecast.error || !forecast.current_metrics) {
                     document.getElementById('forecastResult').innerHTML = `
-                        <div class="alert alert-danger">
-                            Error: ${forecast.error}
+                        <div class="alert alert-warning">
+                            <h5>No Data Available</h5>
+                            <p>${forecast.message || forecast.error || 'Insufficient historical data for this item'}</p>
+                            <small>Item Number: ${itemNumber}</small>
                         </div>
                     `;
+                    document.getElementById('forecastChart').innerHTML = '';
                     return;
                 }
 
-                // Display forecast results
+                // Safe access with default values
+                const metrics = forecast.current_metrics || {};
+                const forecastData = forecast.forecast || {};
+                const planning = forecast.inventory_planning || {};
+
+                // Display forecast results with safe defaults
                 const forecastHtml = `
                     <div class="row mt-3">
                         <div class="col-md-3">
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h6 class="card-title">Avg Daily Demand</h6>
-                                    <h3 class="text-primary">${forecast.current_metrics.avg_daily_demand}</h3>
+                                    <h3 class="text-primary">${metrics.avg_daily_demand || 0}</h3>
                                 </div>
                             </div>
                         </div>
@@ -504,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h6 class="card-title">7-Day Forecast</h6>
-                                    <h3 class="text-success">${forecast.forecast.next_7_days}</h3>
+                                    <h3 class="text-success">${forecastData.next_7_days || 0}</h3>
                                 </div>
                             </div>
                         </div>
@@ -512,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h6 class="card-title">Reorder Point</h6>
-                                    <h3 class="text-warning">${forecast.inventory_planning.reorder_point}</h3>
+                                    <h3 class="text-warning">${planning.reorder_point || 'N/A'}</h3>
                                 </div>
                             </div>
                         </div>
@@ -520,9 +534,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h6 class="card-title">Trend</h6>
-                                    <h3 class="${forecast.forecast.trend === 'increasing' ? 'text-success' : forecast.forecast.trend === 'decreasing' ? 'text-danger' : 'text-secondary'}">
-                                        ${forecast.forecast.trend.toUpperCase()}
-                                        <small>${forecast.forecast.trend_percentage}%</small>
+                                    <h3 class="${
+                                        forecastData.trend === 'increasing' ? 'text-success' : 
+                                        forecastData.trend === 'decreasing' ? 'text-danger' : 
+                                        'text-secondary'
+                                    }">
+                                        ${(forecastData.trend || 'Unknown').toUpperCase()}
+                                        ${forecastData.trend_percentage ? 
+                                            `<small>${forecastData.trend_percentage}%</small>` : ''}
                                     </h3>
                                 </div>
                             </div>
@@ -533,23 +552,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Display forecast chart if available
                 if (forecast.chart_data) {
-                    const chartData = JSON.parse(forecast.chart_data);
-                    const layout = {
-                        title: `Demand Forecast - ${itemNumber}`,
-                        xaxis: { title: 'Date' },
-                        yaxis: { title: 'Quantity' },
-                        hovermode: 'x unified'
-                    };
-                    Plotly.newPlot('forecastChart', chartData, layout, {responsive: true});
+                    try {
+                        const chartData = JSON.parse(forecast.chart_data);
+                        const layout = {
+                            title: `Demand Forecast - ${itemNumber}`,
+                            xaxis: { title: 'Date' },
+                            yaxis: { title: 'Quantity' },
+                            hovermode: 'x unified'
+                        };
+                        Plotly.newPlot('forecastChart', chartData, layout, {responsive: true});
+                    } catch (e) {
+                        console.error('Error parsing chart data:', e);
+                    }
                 }
 
             } catch (error) {
                 console.error('Error loading forecast:', error);
                 document.getElementById('forecastResult').innerHTML = `
                     <div class="alert alert-danger">
-                        Error loading forecast: ${error.message}
+                        <h5>Error Loading Forecast</h5>
+                        <p>${error.response?.data?.error || error.message}</p>
+                        <small>Try a different item number or check the logs for details.</small>
                     </div>
                 `;
+                document.getElementById('forecastChart').innerHTML = '';
             } finally {
                 hideLoading();
             }
@@ -563,13 +589,56 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('forecastResult').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Auto-refresh dashboard every 5 minutes
-        setInterval(loadDashboardSummary, 300000);
+        // Load Top Items for suggestions
+        async function loadTopItems() {
+            try {
+                const response = await axios.get(`${API_BASE}/debug/items`);
+                const items = response.data.items;
+                
+                let html = '<div class="alert alert-info"><h6>Top Items with Sales History:</h6><ul>';
+                items.forEach(item => {
+                    html += `<li><strong>${item.item_number}</strong> - ${item.description} 
+                             (${item.sale_count} sales)</li>`;
+                });
+                html += '</ul><small>Copy an item number to use for forecasting</small></div>';
+                
+                document.getElementById('forecastResult').innerHTML = html;
+                
+                // Also populate datalist for suggestions
+                const datalist = document.getElementById('itemSuggestions');
+                datalist.innerHTML = '';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.item_number;
+                    option.label = item.description;
+                    datalist.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading top items:', error);
+                document.getElementById('forecastResult').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading items: ${error.message}
+                    </div>
+                `;
+            }
+        }
 
         // Initial load
         document.addEventListener('DOMContentLoaded', function() {
-            loadDashboardSummary();
+            // Set default to last 30 days
+            setDateRange(30);
+            // Load item suggestions
+            loadTopItems();
         });
+
+        // Auto-refresh dashboard every 5 minutes
+        setInterval(function() {
+            if (document.getElementById('startDate').value && document.getElementById('endDate').value) {
+                loadDashboardSummary();
+            }
+        }, 300000);
     </script>
 </body>
 </html>
+                

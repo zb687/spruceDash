@@ -1,6 +1,10 @@
 # app.py
-
 import os
+import sys
+
+# Fix Python path for Railway
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
 
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
@@ -9,6 +13,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
+
+# Import services
 from eci_api_service import ECIApiService
 from analytics_service import AnalyticsService
 from database_service import DatabaseService
@@ -48,9 +54,9 @@ def index():
     return render_template('index.html')
 
 @app.route('/api/dashboard/summary')
-@cache.cached(timeout=300)
+@cache.cached(timeout=300, query_string=True)
 def dashboard_summary():
-try:
+    try:
         # Get date parameters or default to last 7 days
         end_date = request.args.get('end_date')
         start_date = request.args.get('start_date')
@@ -67,25 +73,15 @@ try:
         
         # Fetch data for the date range
         sales_data = eci_service.get_daily_sales(start_date, end_date)
-S
-    try:
-        # Change from today to last 7 days
-        today = datetime.now().date()
-        week_ago = today - timedelta(days=7)
-        
-        # Fetch last 7 days of data
-        sales_data = eci_service.get_daily_sales(week_ago, today)
         inventory_alerts = eci_service.get_inventory_alerts()
         
         summary = {
             'today_sales': analytics_service.calculate_daily_sales(sales_data),
             'inventory_alerts': len(inventory_alerts),
             'top_selling_items': analytics_service.get_top_items(sales_data, limit=5),
-            'last_updated': datetime.now().isoformat()
+            'last_updated': datetime.now().isoformat(),
+            'period_label': f'{start_date} to {end_date}'
         }
-        
-        # Rename today_sales to period_sales for clarity
-        summary['period_label'] = 'Last 7 Days'
         
         return jsonify(summary)
     except Exception as e:
@@ -121,7 +117,7 @@ def sales_by_customer():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/sales/by-brand')
-@cache.cached(timeout=3600)  # Cache for 1 hour
+@cache.cached(timeout=3600)
 def sales_by_brand():
     try:
         days = int(request.args.get('days', 30))
@@ -154,6 +150,129 @@ def daily_report():
         return jsonify(report_data)
     except Exception as e:
         logger.error(f"Error generating daily report: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sales/trend')
+def sales_trend():
+    try:
+        end_date = request.args.get('end_date')
+        start_date = request.args.get('start_date')
+        
+        if end_date:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            end_date = datetime.now().date()
+            
+        if start_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=30)
+        
+        # Get daily sales totals
+        sales_data = eci_service.get_daily_sales(start_date, end_date)
+        
+        # Aggregate by date
+        daily_totals = {}
+        for sale in sales_data:
+            date_str = sale['invoice_date'].strftime('%Y-%m-%d')
+            if date_str not in daily_totals:
+                daily_totals[date_str] = 0
+            daily_totals[date_str] += sale['extended_price']
+        
+        # Fill missing dates with 0
+        dates = []
+        sales = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_str = current_date.strftime('%Y-%m-%d')
+            dates.append(date_str)
+            sales.append(daily_totals.get(date_str, 0))
+            current_date += timedelta(days=1)
+        
+        return jsonify({
+            'dates': dates,
+            'sales': sales
+        })
+    except Exception as e:
+        logger.error(f"Error getting sales trend: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debug/data-availability')
+def check_data_availability():
+    try:
+        # Check last 365 days
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=365)
+        
+        # Get all sales in the period
+        sales_data = eci_service.get_daily_sales(start_date, end_date)
+        
+        if sales_data:
+            # Group by date
+            dates = {}
+            for sale in sales_data:
+                date_str = sale['invoice_date'].strftime('%Y-%m-%d')
+                if date_str not in dates:
+                    dates[date_str] = 0
+                dates[date_str] += 1
+            
+            return jsonify({
+                'total_records': len(sales_data),
+                'date_range': f"{start_date} to {end_date}",
+                'dates_with_data': sorted(dates.keys()),
+                'first_sale': min(dates.keys()) if dates else None,
+                'last_sale': max(dates.keys()) if dates else None,
+                'sales_by_date': dates
+            })
+        else:
+            return jsonify({
+                'message': 'No sales data found',
+                'date_range': f"{start_date} to {end_date}"
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/debug/items')
+def debug_items():
+    """Get list of items with recent sales for testing"""
+    try:
+        # Get items from last 90 days
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=90)
+        
+        sales_data = eci_service.get_daily_sales(start_date, end_date)
+        
+        # Aggregate by item
+        item_sales = {}
+        for sale in sales_data:
+            item_num = sale['item_number']
+            if item_num not in item_sales:
+                item_sales[item_num] = {
+                    'item_number': item_num,
+                    'description': sale['description'],
+                    'total_quantity': 0,
+                    'sale_count': 0,
+                    'last_sale': sale['invoice_date'].strftime('%Y-%m-%d')
+                }
+            item_sales[item_num]['total_quantity'] += sale['quantity']
+            item_sales[item_num]['sale_count'] += 1
+            
+        # Get top 20 items by sale count
+        top_items = sorted(
+            item_sales.values(), 
+            key=lambda x: x['sale_count'], 
+            reverse=True
+        )[:20]
+        
+        return jsonify({
+            'message': 'Top items with sales history',
+            'items': top_items,
+            'date_range': f'{start_date} to {end_date}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting top items: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Background jobs
@@ -196,4 +315,5 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=os.getenv('FLASK_ENV') == 'development')
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=os.getenv('FLASK_ENV') == 'development', host='0.0.0.0', port=port)

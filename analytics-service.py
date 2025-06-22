@@ -1,7 +1,7 @@
-# services/analytics_service.py
+# analytics_service.py
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta, date  # ← Add 'date' here
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Any, Tuple
 import logging
 from database_service import DatabaseService
@@ -61,11 +61,26 @@ class AnalyticsService:
             # Get historical sales data from database
             sales_history = self.db_service.get_item_sales_history(item_number, days_history)
             
-            if not sales_history:
+            if not sales_history or len(sales_history) < 7:  # Need at least 7 days
                 return {
                     'item_number': item_number,
-                    'forecast': None,
-                    'message': 'Insufficient historical data'
+                    'message': f'Insufficient data. Found {len(sales_history)} sales records. Need at least 7 days of history.',
+                    'current_metrics': {
+                        'avg_daily_demand': 0,
+                        'avg_weekly_demand': 0,
+                        'avg_monthly_demand': 0
+                    },
+                    'forecast': {
+                        'next_7_days': 0,
+                        'next_30_days': 0,
+                        'trend': 'insufficient_data',
+                        'trend_percentage': 0
+                    },
+                    'inventory_planning': {
+                        'reorder_point': 0,
+                        'safety_stock': 0,
+                        'lead_time_demand': 0
+                    }
                 }
             
             # Convert to DataFrame
@@ -148,8 +163,8 @@ class AnalyticsService:
             logger.error(f"Error calculating demand forecast: {str(e)}")
             return {
                 'item_number': item_number,
-                'forecast': None,
-                'error': str(e)
+                'error': str(e),
+                'message': 'Error calculating forecast. Please check the item number and try again.'
             }
     
     def get_sales_by_brand(self, start_date: date, end_date: date) -> List[Dict]:
@@ -189,19 +204,19 @@ class AnalyticsService:
     def generate_daily_report(self, report_date: str) -> Dict:
         """Generate comprehensive daily report"""
         try:
-            date = datetime.strptime(report_date, '%Y-%m-%d').date()
+            date_obj = datetime.strptime(report_date, '%Y-%m-%d').date()
             
             # Get various metrics
-            sales_data = self.db_service.get_daily_sales_data(date)
+            sales_data = self.db_service.get_daily_sales_data(date_obj)
             inventory_alerts = self.db_service.get_low_inventory_items()
-            top_customers = self.db_service.get_top_customers_by_date(date, limit=10)
+            top_customers = self.db_service.get_top_customers_by_date(date_obj, limit=10)
             
             # Calculate metrics
             daily_metrics = self.calculate_daily_sales(sales_data)
             top_items = self.get_top_items(sales_data, limit=10)
             
             # Compare to previous period
-            prev_date = date - timedelta(days=1)
+            prev_date = date_obj - timedelta(days=1)
             prev_sales_data = self.db_service.get_daily_sales_data(prev_date)
             prev_metrics = self.calculate_daily_sales(prev_sales_data)
             
